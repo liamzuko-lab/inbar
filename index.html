@@ -6,7 +6,7 @@
     <title>מערכת ניהול Inbar</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root { --primary: #2c3e50; --secondary: #3498db; --accent: #e74c3c; --bg: #f8f9fa; }
+        :root { --primary: #2c3e50; --secondary: #3498db; --accent: #e74c3c; --bg: #f8f9fa; --success: #27ae60; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
         
         /* Login Styles */
@@ -38,11 +38,21 @@
         th, td { border: 1px solid #eee; padding: 12px; text-align: center; font-size: 0.9em; }
         th { background: var(--primary); color: white; }
         
-        /* Calendar Placeholder */
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 20px; }
-        .cal-day { background: #fff; border: 1px solid #ddd; padding: 10px; min-height: 80px; font-size: 0.8em; position: relative; }
-        .cal-day.has-shift { background: #e8f8f5; border-color: #27ae60; }
-        .cal-header { font-weight: bold; text-align: center; background: #eee; padding: 5px; }
+        /* Calendar Styles */
+        .cal-controls { display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 15px; }
+        .cal-controls button { background: none; border: 1px solid #ccc; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 1.2em; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; direction: rtl; }
+        .cal-day-header { text-align: center; font-weight: bold; padding: 10px; background: #eee; border-radius: 4px; }
+        .cal-day { background: #fff; border: 1px solid #ddd; padding: 5px; min-height: 80px; font-size: 0.9em; position: relative; border-radius: 4px; }
+        .cal-day.empty { background: transparent; border: none; }
+        .cal-day.today { border: 2px solid var(--secondary); }
+        .cal-day.has-shift { background: #e8f8f5; border-color: var(--success); }
+        .day-number { font-weight: bold; display: block; margin-bottom: 5px; }
+        .shift-marker { font-size: 0.75em; background: var(--primary); color: white; padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Toggles */
+        .toggle-btn { background: #f1f1f1; border: none; padding: 8px; cursor: pointer; border-radius: 4px; font-size: 0.9em; margin-top: 5px; }
+        .toggle-btn.active { background: var(--secondary); color: white; }
 
     </style>
 </head>
@@ -68,7 +78,7 @@
         </div>
 
         <div class="grid-container" id="menuGrid">
-            <div class="card" onclick="openSection('entrySection')">
+            <div class="card" onclick="openSection('entrySection'); initEntryForm();">
                 <div class="card-icon">⏱️</div>
                 <h3>הכנסת משמרת</h3>
                 <p>דיווח שעות, תאריכים וטיפים</p>
@@ -93,34 +103,69 @@
             <div style="max-width: 600px; margin: 0 auto;">
                 <div class="form-group">
                     <label>בחר עובד:</label>
-                    <select id="shiftEmpSelect"></select>
+                    <select id="shiftEmpSelect" onchange="checkTipEligibility()"></select>
                 </div>
                 
+                <div class="form-group">
+                    <label>תאריך המשמרת:</label>
+                    <input type="date" id="shiftDate">
+                </div>
+
                 <div style="display: flex; gap: 15px;">
                     <div class="form-group" style="flex:1;">
-                        <label>התחלה (תאריך ושעה):</label>
-                        <input type="datetime-local" id="shiftStart">
+                        <label>שעת התחלה:</label>
+                        <input type="time" id="shiftTimeStart" required>
                     </div>
                     <div class="form-group" style="flex:1;">
-                        <label>סיום (תאריך ושעה):</label>
-                        <input type="datetime-local" id="shiftEnd">
+                        <label>שעת סיום:</label>
+                        <input type="time" id="shiftTimeEnd" required>
+                        <small style="color:gray; font-size:0.8em;">(אם הסיום קטן מההתחלה, ייחשב כיום למחרת)</small>
                     </div>
                 </div>
 
-                <div class="form-group" id="tipInputGroup">
-                    <label>סה"כ טיפים למשמרת (₪):</label>
-                    <input type="number" id="shiftTips" value="0">
-                    <small style="color:gray;">רלוונטי רק לעובדי טיפים</small>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                        <input type="checkbox" id="includeTips" style="width:auto; transform: scale(1.5);">
+                        <label for="includeTips" style="margin:0; cursor:pointer;">עובד זה זכאי לטיפים במשמרת זו</label>
+                    </div>
+
+                    <div class="form-group" id="tipInputGroup">
+                        <label>סה"כ טיפים (₪):</label>
+                        <input type="number" id="shiftTips" value="0">
+                    </div>
+
+                    <hr style="border:0; border-top:1px solid #ddd; margin:15px 0;">
+
+                    <button type="button" class="toggle-btn" onclick="toggleSpecialWage()" id="btnSpecialWage">💰 הגדר שכר מיוחד למשמרת זו</button>
+                    <div id="specialWageContainer" class="hidden" style="margin-top:10px;">
+                        <label>תעריף שעתי מיוחד (₪):</label>
+                        <input type="number" id="specialWageInput" placeholder="הכנס שכר לשעה">
+                    </div>
                 </div>
 
-                <button onclick="saveShift()" style="width:100%; background:var(--secondary); color:white; padding:12px; border:none; border-radius:5px; font-size:16px; cursor:pointer;">שמור נתונים</button>
+                <button onclick="saveShift()" style="width:100%; background:var(--secondary); color:white; padding:12px; border:none; border-radius:5px; font-size:16px; cursor:pointer;">שמור משמרת</button>
             </div>
         </div>
 
         <div id="calendarSection" class="section-view hidden">
             <button class="close-btn" onclick="closeSections()">X סגור</button>
-            <h3>לוח משמרות (חודש נוכחי)</h3>
-            <div class="calendar-grid" id="calendarContainer">
+            <h3>יומן משמרות</h3>
+            
+            <div class="cal-controls">
+                <button onclick="changeMonth(-1)">◀</button>
+                <h3 id="calMonthTitle" style="margin:0; min-width: 150px; text-align: center;"></h3>
+                <button onclick="changeMonth(1)">▶</button>
+            </div>
+
+            <div class="calendar-grid" id="calendarGrid">
+                <div class="cal-day-header">א'</div>
+                <div class="cal-day-header">ב'</div>
+                <div class="cal-day-header">ג'</div>
+                <div class="cal-day-header">ד'</div>
+                <div class="cal-day-header">ה'</div>
+                <div class="cal-day-header">ו'</div>
+                <div class="cal-day-header">ש'</div>
                 </div>
         </div>
 
@@ -138,11 +183,11 @@
                             <th>תפקיד</th>
                             <th>התחלה</th>
                             <th>סיום</th>
-                            <th>סה"כ שעות</th>
-                            <th>שכר שעתי</th>
+                            <th>שעות</th>
+                            <th>תעריף</th>
                             <th>טיפים</th>
-                            <th>השלמה?</th>
-                            <th>סה"כ לתשלום</th>
+                            <th>השלמה</th>
+                            <th>סה"כ</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -173,9 +218,8 @@
 
         // משתנים גלובליים
         let allUsers = []; 
-        let allRoles = {}; // יכיל את הגדרות השכר מ-Firebase
-        let allShifts = [];
-        let globalConfig = {};
+        let allRoles = {}; 
+        let currentDateView = new Date(); // ללוח שנה
 
         // === 1. לוגיקת כניסה ===
         
@@ -191,13 +235,11 @@
             if (!uName || !uPass || !uMFA) return alert("נא למלא את כל השדות");
 
             try {
-                // 1. בדיקת MFA מול הקונפיגורציה
                 const configDoc = await getDoc(doc(db, "config", "security"));
                 if (!configDoc.exists() || configDoc.data().mfaCode !== uMFA) {
                     return alert("קוד אבטחה (MFA) שגוי!");
                 }
 
-                // 2. בדיקת משתמש
                 const q = query(collection(db, "users"), where("username", "==", uName));
                 const snapshot = await getDocs(q);
                 
@@ -223,13 +265,11 @@
             document.getElementById('dashboard').classList.remove('hidden');
             document.getElementById('welcomeUser').innerText = `שלום, ${user.name}`;
 
-            // טעינת תפקידים (Roles) מה-DB
             const rolesSnap = await getDocs(collection(db, "roles"));
             rolesSnap.forEach(d => {
-                allRoles[d.id] = d.data(); // המפתח הוא שם התפקיד (waiter, kitchen...)
+                allRoles[d.id] = d.data(); 
             });
 
-            // טעינת רשימת עובדים ל-Select
             const usersSnap = await getDocs(collection(db, "users"));
             const select = document.getElementById('shiftEmpSelect');
             select.innerHTML = '<option value="">-- בחר עובד --</option>';
@@ -238,7 +278,7 @@
                 const u = d.data();
                 allUsers.push(u);
                 const opt = document.createElement('option');
-                opt.value = u.username; // נזהה לפי username
+                opt.value = u.username; 
                 opt.innerText = `${u.name} (${allRoles[u.role]?.title || u.role})`;
                 select.appendChild(opt);
             });
@@ -247,55 +287,96 @@
         // === 2. ניהול UI (דאשבורד) ===
 
         window.openSection = (id) => {
-            // סגירת כל האחרים
             document.querySelectorAll('.section-view').forEach(el => el.classList.add('hidden'));
-            document.getElementById('menuGrid').classList.add('hidden'); // הסתרת התפריט הראשי
-            document.getElementById(id).classList.remove('hidden'); // הצגת החלק הרצוי
+            document.getElementById('menuGrid').classList.add('hidden'); 
+            document.getElementById(id).classList.remove('hidden'); 
         };
 
         window.closeSections = () => {
             document.querySelectorAll('.section-view').forEach(el => el.classList.add('hidden'));
-            document.getElementById('menuGrid').classList.remove('hidden'); // חזרה לתפריט
+            document.getElementById('menuGrid').classList.remove('hidden'); 
         };
 
-        // === 3. שמירת משמרת (כולל לוגיקת לילה) ===
+        // === 3. לוגיקת הכנסת משמרת מתקדמת ===
+
+        window.initEntryForm = () => {
+            // תאריך היום כברירת מחדל
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('shiftDate').value = today;
+            
+            // איפוס שדות
+            document.getElementById('shiftTimeStart').value = '';
+            document.getElementById('shiftTimeEnd').value = '';
+            document.getElementById('shiftTips').value = '0';
+            document.getElementById('specialWageInput').value = '';
+            document.getElementById('specialWageContainer').classList.add('hidden');
+            document.getElementById('includeTips').checked = false;
+        };
+
+        window.checkTipEligibility = () => {
+            const username = document.getElementById('shiftEmpSelect').value;
+            if(!username) return;
+            const user = allUsers.find(u => u.username === username);
+            const roleConfig = allRoles[user.role];
+            
+            // אם התפקיד מזכה בטיפים - סמן אוטומטית
+            const isTipped = roleConfig?.isTipped || false;
+            document.getElementById('includeTips').checked = isTipped;
+        }
+
+        window.toggleSpecialWage = () => {
+            const container = document.getElementById('specialWageContainer');
+            container.classList.toggle('hidden');
+        }
 
         window.saveShift = async () => {
             const username = document.getElementById('shiftEmpSelect').value;
-            const startStr = document.getElementById('shiftStart').value;
-            const endStr = document.getElementById('shiftEnd').value;
+            const dateStr = document.getElementById('shiftDate').value;
+            const timeStart = document.getElementById('shiftTimeStart').value;
+            const timeEnd = document.getElementById('shiftTimeEnd').value;
             const tips = Number(document.getElementById('shiftTips').value);
+            const includeTips = document.getElementById('includeTips').checked;
+            const specialWageVal = document.getElementById('specialWageInput').value;
 
-            if(!username || !startStr || !endStr) return alert("נא למלא את כל שדות החובה");
+            if(!username || !dateStr || !timeStart || !timeEnd) return alert("נא למלא את כל שדות החובה");
 
             const user = allUsers.find(u => u.username === username);
-            const roleConfig = allRoles[user.role]; // שליפת הגדרות השכר מה-DB
+            const roleConfig = allRoles[user.role]; 
 
-            if(!roleConfig) return alert("שגיאה: לא נמצאו הגדרות שכר לתפקיד זה");
+            // יצירת אובייקטי תאריך לחישוב שעות
+            let startDateTime = new Date(`${dateStr}T${timeStart}`);
+            let endDateTime = new Date(`${dateStr}T${timeEnd}`);
 
-            // חישוב זמנים
-            const startDate = new Date(startStr);
-            const endDate = new Date(endStr);
-            const diffMs = endDate - startDate;
-            
-            if(diffMs <= 0) return alert("שעת סיום חייבת להיות אחרי שעת התחלה");
-            
-            const totalHours = diffMs / (1000 * 60 * 60); // שעות עשרוניות
+            // לוגיקת לילה: אם הסיום קטן מההתחלה, סימן שזה יום למחרת
+            if (endDateTime <= startDateTime) {
+                endDateTime.setDate(endDateTime.getDate() + 1);
+            }
 
-            // חישוב שכר
+            const diffMs = endDateTime - startDateTime;
+            const totalHours = diffMs / (1000 * 60 * 60);
+
+            // קביעת שכר שעתי (מיוחד או רגיל)
+            let hourlyWage = roleConfig.baseWage;
+            if (specialWageVal && Number(specialWageVal) > 0) {
+                hourlyWage = Number(specialWageVal);
+            }
+
+            // חישוב שכר סופי
             let finalPay = 0;
             let supplement = 0;
-            let hourlyWage = roleConfig.baseWage;
 
-            if (roleConfig.isTipped) {
+            if (includeTips) {
                 const tipsPerHour = tips / totalHours;
-                if (tipsPerHour < roleConfig.minTipWage) {
-                    supplement = (roleConfig.minTipWage - tipsPerHour) * totalHours;
+                const minWage = roleConfig.minTipWage;
+                
+                if (tipsPerHour < minWage) {
+                    supplement = (minWage - tipsPerHour) * totalHours;
                     finalPay = tips + supplement;
                 } else {
                     finalPay = tips;
                 }
             } else {
+                // עובד רגיל (או עובד טיפים במשמרת ללא טיפים)
                 finalPay = totalHours * hourlyWage;
             }
 
@@ -305,11 +386,12 @@
                     employeeName: user.name,
                     username: user.username,
                     roleTitle: roleConfig.title,
-                    start: startStr, // ISO String עם תאריך ושעה
-                    end: endStr,
+                    start: startDateTime.toISOString(), // שומר תאריך מלא מדויק
+                    end: endDateTime.toISOString(),
                     totalHours: totalHours.toFixed(2),
                     hourlyWage: hourlyWage,
                     tips: tips,
+                    isTippedShift: includeTips,
                     supplement: supplement.toFixed(2),
                     finalPay: finalPay.toFixed(2),
                     createdAt: new Date()
@@ -322,15 +404,14 @@
             }
         };
 
-        // === 4. טעינת נתונים לטבלה ויומן ===
+        // === 4. לוח שנה ודוחות ===
 
         async function fetchShifts() {
-            // כאן אפשר להוסיף פילטרים של תאריכים אם רוצים
             const q = query(collection(db, "shifts")); 
             const snap = await getDocs(q);
             const shifts = [];
             snap.forEach(d => shifts.push(d.data()));
-            return shifts.sort((a,b) => new Date(b.start) - new Date(a.start)); // מהחדש לישן
+            return shifts.sort((a,b) => new Date(b.start) - new Date(a.start));
         }
 
         window.loadReportTable = async () => {
@@ -356,43 +437,70 @@
                 `;
                 tbody.appendChild(tr);
             });
-            
-            // שמירת נתונים לייצוא
             window.currentExportData = shifts;
         };
 
+        // --- לוגיקת לוח שנה אמיתית ---
+        
+        window.changeMonth = (delta) => {
+            currentDateView.setMonth(currentDateView.getMonth() + delta);
+            loadCalendar();
+        }
+
         window.loadCalendar = async () => {
             const shifts = await fetchShifts();
-            const container = document.getElementById('calendarContainer');
-            container.innerHTML = '';
-
-            // כותרות ימים
-            ['א','ב','ג','ד','ה','ו','ש'].forEach(d => {
-                const div = document.createElement('div');
-                div.className = 'cal-header';
-                div.innerText = d;
-                container.appendChild(div);
-            });
-
-            // לוגיקה פשוטה ללוח שנה (כרגע מציג סתם ימים לדוגמה + שיבוצים)
-            // בפרויקט אמיתי צריך לחשב את היום הראשון בחודש וכו'
-            // לצורך הדגמה נציג את 30 הימים האחרונים
+            const container = document.getElementById('calendarGrid');
             
+            // ניקוי ימים ישנים (השארת כותרות)
+            const headers = container.querySelectorAll('.cal-day-header');
+            container.innerHTML = '';
+            headers.forEach(h => container.appendChild(h));
+
+            const year = currentDateView.getFullYear();
+            const month = currentDateView.getMonth(); // 0-11
+            
+            // עדכון כותרת
+            const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+            document.getElementById('calMonthTitle').innerText = `${monthNames[month]} ${year}`;
+
+            // חישוב ימים
+            const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 (Sunday) - 6
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // הוספת משבצות ריקות להתחלה
+            for(let i=0; i<firstDayOfMonth; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cal-day empty';
+                container.appendChild(empty);
+            }
+
+            // יצירת הימים
             const today = new Date();
-            for(let i=1; i<=30; i++) {
-                const div = document.createElement('div');
-                div.className = 'cal-day';
-                div.innerHTML = `<strong>${i}</strong><br>`;
+            for(let day=1; day<=daysInMonth; day++) {
+                const cell = document.createElement('div');
+                cell.className = 'cal-day';
                 
-                // בדיקה אם יש משמרת ביום הזה (בצורה פשטנית לפי יום בחודש)
-                const shiftsToday = shifts.filter(s => new Date(s.start).getDate() === i);
-                if(shiftsToday.length > 0) {
-                    div.classList.add('has-shift');
-                    shiftsToday.forEach(st => {
-                        div.innerHTML += `<span style="font-size:10px;">• ${st.employeeName}</span><br>`;
+                // סימון "היום"
+                if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                    cell.classList.add('today');
+                }
+
+                cell.innerHTML = `<span class="day-number">${day}</span>`;
+
+                // בדיקת משמרות ליום זה
+                const shiftDateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                
+                // סינון משמרות שמתחילות ביום הזה
+                const dailyShifts = shifts.filter(s => s.start.startsWith(shiftDateStr));
+                
+                if (dailyShifts.length > 0) {
+                    cell.classList.add('has-shift');
+                    dailyShifts.forEach(s => {
+                        cell.innerHTML += `<span class="shift-marker">${s.employeeName} (${new Date(s.start).getHours()}:${String(new Date(s.start).getMinutes()).padStart(2,'0')})</span>`;
                     });
                 }
-                container.appendChild(div);
+
+                container.appendChild(cell);
             }
         };
 
@@ -407,6 +515,7 @@
                 "שעות": s.totalHours,
                 "שכר לשעה": s.hourlyWage,
                 "טיפים": s.tips,
+                "האם קיבל טיפ": s.isTippedShift ? 'כן' : 'לא',
                 "השלמה": s.supplement,
                 "סהכ לתשלום": s.finalPay
             }));
