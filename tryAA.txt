@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת ניהול משמרות</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; text-align: right; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #333; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; margin-top: 20px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 4px; }
+        button:hover { background: #218838; }
+        button.delete { background: #dc3545; margin-top: 5px; width: auto; padding: 5px 10px; float: left;}
+        
+        /* ניווט בין מסכים */
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav button { margin-top: 0; background: #007bff; }
+        
+        .hidden { display: none; }
+        .result-box { background: #e9ecef; padding: 10px; margin-top: 15px; border-radius: 5px; }
+        ul { list-style: none; padding: 0; }
+        li { background: #fff; border-bottom: 1px solid #ddd; padding: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ניהול מסעדה</h1>
+    
+    <div class="nav">
+        <button onclick="showSection('reportSection')">📝 דיווח משמרת</button>
+        <button onclick="showSection('adminSection')" style="background: #6c757d;">👮 מנהל / הגדרות</button>
+    </div>
+
+    <div id="reportSection">
+        <h2>דיווח שעות</h2>
+        <label>בחר עובד:</label>
+        <select id="employeeSelect">
+            <option value="">טוען עובדים...</option>
+        </select>
+
+        <label>שעת התחלה:</label>
+        <input type="time" id="startTime">
+
+        <label>שעת סיום:</label>
+        <input type="time" id="endTime">
+
+        <label>סה"כ טיפים בקופה (₪):</label>
+        <input type="number" id="totalTips" placeholder="0">
+
+        <button onclick="calculateAndSave()">שמור וחשב שכר</button>
+
+        <div id="calcResult" class="result-box hidden">
+            </div>
+    </div>
+
+    <div id="adminSection" class="hidden">
+        <h2>הגדרות עסק</h2>
+        <label>שכר בסיס לשעה (בוקר):</label>
+        <input type="number" id="settingBaseWage">
+        
+        <label>מינימום שער לשעה (ערב + טיפ):</label>
+        <input type="number" id="settingMinEvening">
+
+        <label>שעת תחילת ערב (למשל 17:00):</label>
+        <input type="time" id="settingEveningStart">
+        
+        <button onclick="saveSettings()">שמור הגדרות</button>
+        <hr>
+
+        <h3>ניהול עובדים</h3>
+        <input type="text" id="newEmpName" placeholder="שם העובד">
+        <input type="text" id="newEmpId" placeholder="תעודת זהות">
+        <select id="newEmpRole">
+            <option value="waiter">מלצר (מקבל טיפים)</option>
+            <option value="kitchen">מטבח</option>
+            <option value="regular">כללי</option>
+        </select>
+        <button onclick="addEmployee()" style="background: #17a2b8;">הוסף עובד למערכת</button>
+        
+        <h4>רשימת עובדים:</h4>
+        <ul id="employeesListDisplay"></ul>
+    </div>
+
+</div>
+
+<script type="module">
+  // ייבוא הפונקציות מפיירבייס דרך האינטרנט
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, deleteDoc } 
+    from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+  // --- הגדרות פיירבייס (תדביק את שלך כאן!) ---
+  const firebaseConfig = {
+    apiKey: "AIzaSy.....", // <--- להחליף ב-API KEY שלך
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "123456...",
+    appId: "1:123456..."
+  };
+
+  // אתחול האפליקציה
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // משתנים גלובליים
+  let currentSettings = { morningWage: 32, eveningMinWage: 45, eveningStartHour: "17:00" };
+  let allEmployees = [];
+
+  // ==========================================
+  // 1. פונקציות לוגיקה (המוח של המערכת)
+  // ==========================================
+  
+  window.showSection = (sectionId) => {
+      document.getElementById('reportSection').classList.add('hidden');
+      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById(sectionId).classList.remove('hidden');
+  }
+
+  // טעינת נתונים ראשונית
+  async function loadInitialData() {
+      // טעינת הגדרות
+      const docRef = doc(db, "config", "businessRules");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+          currentSettings = docSnap.data();
+          // עדכון השדות במסך אדמין
+          document.getElementById('settingBaseWage').value = currentSettings.morningWage;
+          document.getElementById('settingMinEvening').value = currentSettings.eveningMinWage;
+          document.getElementById('settingEveningStart').value = currentSettings.eveningStartHour;
+      }
+
+      // טעינת עובדים
+      await loadEmployees();
+  }
+
+  async function loadEmployees() {
+      const querySnapshot = await getDocs(collection(db, "employees"));
+      allEmployees = [];
+      const selectBox = document.getElementById('employeeSelect');
+      const listBox = document.getElementById('employeesListDisplay');
+      
+      selectBox.innerHTML = '<option value="">-- בחר עובד --</option>';
+      listBox.innerHTML = '';
+
+      querySnapshot.forEach((doc) => {
+          const emp = { id: doc.id, ...doc.data() };
+          allEmployees.push(emp);
+          
+          // הוספה ל-Select (מסך דיווח)
+          const opt = document.createElement("option");
+          opt.value = emp.id;
+          opt.text = emp.name;
+          selectBox.appendChild(opt);
+
+          // הוספה לרשימה (מסך אדמין)
+          const li = document.createElement("li");
+          li.innerHTML = `${emp.name} (${emp.role}) <button class="delete" onclick="window.deleteEmployee('${emp.id}')">מחק</button>`;
+          listBox.appendChild(li);
+      });
+  }
+
+  // ==========================================
+  // 2. פעולות אדמין
+  // ==========================================
+
+  window.saveSettings = async () => {
+      const newSettings = {
+          morningWage: Number(document.getElementById('settingBaseWage').value),
+          eveningMinWage: Number(document.getElementById('settingMinEvening').value),
+          eveningStartHour: document.getElementById('settingEveningStart').value
+      };
+      
+      await setDoc(doc(db, "config", "businessRules"), newSettings);
+      currentSettings = newSettings;
+      alert("הגדרות נשמרו בהצלחה!");
+  }
+
+  window.addEmployee = async () => {
+      const name = document.getElementById('newEmpName').value;
+      const idNum = document.getElementById('newEmpId').value;
+      const role = document.getElementById('newEmpRole').value;
+      
+      if(!name) return alert("חובה להכניס שם");
+
+      await addDoc(collection(db, "employees"), { name, idNum, role });
+      
+      // איפוס שדות
+      document.getElementById('newEmpName').value = '';
+      document.getElementById('newEmpId').value = '';
+      
+      alert("עובד נוסף!");
+      loadEmployees(); // רענון הרשימה
+  }
+
+  window.deleteEmployee = async (id) => {
+      if(confirm("למחוק עובד זה?")) {
+          await deleteDoc(doc(db, "employees", id));
+          loadEmployees();
+      }
+  }
+
+  // ==========================================
+  // 3. פעולות דיווח וחישוב (הלב של האפליקציה)
+  // ==========================================
+
+  window.calculateAndSave = async () => {
+      const empId = document.getElementById('employeeSelect').value;
+      const startStr = document.getElementById('startTime').value;
+      const endStr = document.getElementById('endTime').value;
+      const tips = Number(document.getElementById('totalTips').value);
+
+      if(!empId || !startStr || !endStr) return alert("נא למלא את כל השדות");
+
+      const employee = allEmployees.find(e => e.id === empId);
+      
+      // --- אלגוריתם החישוב ---
+      const cutoffHour = parseInt(currentSettings.eveningStartHour.split(':')[0]);
+      
+      function timeToDec(t) { 
+          const [h, m] = t.split(':').map(Number); 
+          return h + m/60; 
+      }
+      
+      const start = timeToDec(startStr);
+      const end = timeToDec(endStr);
+      const totalHours = end - start;
+
+      let morningHours = 0;
+      let eveningHours = 0;
+
+      if (end <= cutoffHour) {
+          morningHours = totalHours;
+      } else if (start >= cutoffHour) {
+          eveningHours = totalHours;
+      } else {
+          morningHours = cutoffHour - start;
+          eveningHours = end - cutoffHour;
+      }
+
+      let pay = 0;
+      let supplement = 0;
+
+      // תשלום בוקר
+      pay += morningHours * currentSettings.morningWage;
+
+      // תשלום ערב
+      if (employee.role === 'waiter' && eveningHours > 0) {
+          const tipsPerHour = tips / eveningHours;
+          if (tipsPerHour < currentSettings.eveningMinWage) {
+              supplement = (currentSettings.eveningMinWage - tipsPerHour) * eveningHours;
+              pay += tips + supplement;
+          } else {
+              pay += tips;
+          }
+      } else {
+          pay += eveningHours * currentSettings.morningWage; 
+      }
+
+      // שמירה ל-DB
+      await addDoc(collection(db, "shifts"), {
+          employeeName: employee.name,
+          date: new Date(),
+          start: startStr,
+          end: endStr,
+          totalPay: pay.toFixed(2),
+          tips: tips,
+          supplement: supplement.toFixed(2)
+      });
+
+      // הצגת תוצאה למסך
+      const resultDiv = document.getElementById('calcResult');
+      resultDiv.classList.remove('hidden');
+      resultDiv.innerHTML = `
+          <strong>משמרת נשמרה!</strong><br>
+          שעות בוקר: ${morningHours.toFixed(2)} | שעות ערב: ${eveningHours.toFixed(2)}<br>
+          השלמה מהעסק: ${supplement.toFixed(2)} ₪<br>
+          <h2>סה"כ לתשלום לעובד: ${pay.toFixed(2)} ₪</h2>
+      `;
+  }
+
+  // הפעלה ראשונית
+  loadInitialData();
+
+</script>
+
+</body>
+</html>
