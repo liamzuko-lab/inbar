@@ -93,13 +93,14 @@
     from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
   // --- הגדרות פיירבייס (תדביק את שלך כאן!) ---
-  const firebaseConfig = {
-    apiKey: "AIzaSy.....", // <--- להחליף ב-API KEY שלך
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "123456...",
-    appId: "1:123456..."
+ const firebaseConfig = {
+  apiKey: "AIzaSyCFbeJWhbsGbcgwHBZywYNAdV5iDJ7RSdc",
+  authDomain: "inbar-website.firebaseapp.com",
+  projectId: "inbar-website",
+  storageBucket: "inbar-website.firebasestorage.app",
+  messagingSenderId: "2603275288",
+  appId: "1:2603275288:web:28388114b71fcaf7235f6d",
+  measurementId: "G-NJ5LJ6RNEF"
   };
 
   // אתחול האפליקציה
