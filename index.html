@@ -33,7 +33,10 @@
         /* Form & Tables */
         .form-group { margin-bottom: 15px; text-align: right; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        /* ניסיון לכפות עיצוב זמן נקי */
+        input[type="time"] { font-family: 'Segoe UI', sans-serif; font-size: 16px; } 
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #eee; padding: 12px; text-align: center; font-size: 0.9em; }
         th { background: var(--primary); color: white; }
@@ -48,7 +51,6 @@
         .cal-day.today { border: 2px solid var(--secondary); }
         .shift-marker { font-size: 0.8em; background: var(--primary); color: white; padding: 3px; border-radius: 3px; margin-bottom: 3px; display: block; cursor: pointer; }
         
-        /* Toggle & Checkbox */
         .toggle-btn { background: #f1f1f1; border: none; padding: 8px; cursor: pointer; border-radius: 4px; font-size: 0.9em; margin-top: 5px; }
 
     </style>
@@ -57,7 +59,7 @@
 
     <div id="loginScreen">
         <div class="login-box">
-            <h2 style="color:var(--primary); margin-top:0;">כניסה למערכת</h2>
+            <h2 style="color:var(--primary); margin-top:0;">כניסה למנהלים בלבד</h2>
             <input type="text" id="uName" placeholder="שם משתמש" onkeydown="checkEnter(event)">
             <input type="password" id="uPass" placeholder="סיסמה" onkeydown="checkEnter(event)">
             <input type="password" id="uMFA" placeholder="קוד אבטחה (MFA)" onkeydown="checkEnter(event)" style="border-color: var(--secondary);">
@@ -68,7 +70,7 @@
     <div id="dashboard" class="hidden">
         <div class="header">
             <div>
-                <h2 style="margin:0;">מערכת ניהול משמרות</h2>
+                <h2 style="margin:0;">ניהול שכר ועובדים</h2>
                 <span id="welcomeUser" style="color:gray;"></span>
             </div>
             <button onclick="location.reload()" style="background:var(--accent); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">יציאה</button>
@@ -91,18 +93,19 @@
             </div>
             
             <div class="card" onclick="openSection('newEmployeeSection');">
-                <div class="card-icon">👤</div>
+                <div class="card-icon">👷</div>
                 <h3>הקמת עובד חדש</h3>
             </div>
         </div>
 
         <div id="entrySection" class="section-view hidden">
             <button class="close-btn" onclick="closeSections()">X סגור</button>
-            <h3>הוספת משמרת חדשה</h3>
+            <h3>דיווח שעות לעובד</h3>
             <div style="max-width: 600px; margin: 0 auto;">
                 <div class="form-group">
-                    <label>בחר עובד:</label>
+                    <label>בחר עובד מהרשימה:</label>
                     <select id="shiftEmpSelect" onchange="checkTipEligibility()"></select>
+                    <small style="color:gray;">* הרשימה מציגה רק עובדים שהוקמו במערכת</small>
                 </div>
                 
                 <div class="form-group">
@@ -112,11 +115,11 @@
 
                 <div style="display: flex; gap: 15px;">
                     <div class="form-group" style="flex:1;">
-                        <label>שעת התחלה:</label>
+                        <label>שעת התחלה (24H):</label>
                         <input type="time" id="shiftTimeStart" required>
                     </div>
                     <div class="form-group" style="flex:1;">
-                        <label>שעת סיום:</label>
+                        <label>שעת סיום (24H):</label>
                         <input type="time" id="shiftTimeEnd" required>
                     </div>
                 </div>
@@ -124,7 +127,7 @@
                 <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
                         <input type="checkbox" id="includeTips" style="width:auto; transform: scale(1.5);">
-                        <label for="includeTips" style="margin:0; cursor:pointer;">עובד זה זכאי לטיפים במשמרת זו</label>
+                        <label for="includeTips" style="margin:0; cursor:pointer;">האם העובד קיבל טיפים במשמרת זו?</label>
                     </div>
 
                     <div class="form-group">
@@ -202,10 +205,10 @@
 
         <div id="newEmployeeSection" class="section-view hidden">
             <button class="close-btn" onclick="closeSections()">X סגור</button>
-            <h3>הקמת עובד חדש במערכת</h3>
+            <h3>הקמת עובד חדש למאגר</h3>
             <div style="max-width: 500px; margin: 0 auto;">
                 <div class="form-group">
-                    <label>שם מלא:</label>
+                    <label>שם עובד מלא:</label>
                     <input type="text" id="neName" placeholder="למשל: דני כהן">
                 </div>
                 <div class="form-group">
@@ -213,20 +216,12 @@
                     <input type="text" id="neId" placeholder="מספר ת.ז.">
                 </div>
                 <div class="form-group">
-                    <label>שם משתמש לכניסה:</label>
-                    <input type="text" id="neUser" placeholder="באנגלית, למשל: dany">
-                </div>
-                <div class="form-group">
-                    <label>סיסמה ראשונית:</label>
-                    <input type="text" id="nePass" value="123456">
-                </div>
-                <div class="form-group">
-                    <label>שכר בסיס לשעה (₪):</label>
+                    <label>שכר לשעה (₪):</label>
                     <input type="number" id="neWage" placeholder="30">
                 </div>
                 
-                <p style="font-size:0.8em; color:gray;">* העובד יוגדר אוטומטית כעובד זכאי לטיפים.</p>
-                <button onclick="createNewEmployee()" style="width:100%; background:var(--secondary); color:white; padding:12px; border:none; border-radius:5px; font-size:16px; cursor:pointer;">צור עובד</button>
+                <p style="font-size:0.8em; color:gray;">* העובדים שמוקמים כאן מיועדים לחישוב שכר בלבד ואין להם גישה למערכת.</p>
+                <button onclick="createNewEmployee()" style="width:100%; background:var(--secondary); color:white; padding:12px; border:none; border-radius:5px; font-size:16px; cursor:pointer;">הוסף עובד</button>
             </div>
         </div>
 
@@ -252,11 +247,10 @@
         const db = getFirestore(app);
 
         // משתנים גלובליים
-        let allUsers = []; 
-        let allRoles = {}; 
+        let allWorkers = []; // רשימת העובדים (מקולקציית workers)
         let currentDateView = new Date(); 
 
-        // === 1. לוגיקת כניסה ===
+        // === 1. לוגיקת כניסה (Admin/Manager Only) ===
         window.checkEnter = (e) => { if (e.key === "Enter") window.doLogin(); }
 
         window.doLogin = async () => {
@@ -267,11 +261,13 @@
             if (!uName || !uPass || !uMFA) return alert("נא למלא את כל השדות");
 
             try {
+                // בדיקת קוד אבטחה
                 const configDoc = await getDoc(doc(db, "config", "security"));
                 if (!configDoc.exists() || configDoc.data().mfaCode !== uMFA) {
                     return alert("קוד אבטחה (MFA) שגוי!");
                 }
 
+                // בדיקה בטבלת המנהלים (users)
                 const q = query(collection(db, "users"), where("username", "==", uName));
                 const snapshot = await getDocs(q);
                 
@@ -284,7 +280,7 @@
                 if (foundUser) {
                     await initSystem(foundUser);
                 } else {
-                    alert("שם משתמש או סיסמה שגויים");
+                    alert("שגיאה: שם משתמש/סיסמה שגויים, או שאין לך הרשאות ניהול.");
                 }
             } catch (e) {
                 console.error(e);
@@ -297,17 +293,13 @@
             document.getElementById('dashboard').classList.remove('hidden');
             document.getElementById('welcomeUser').innerText = `שלום, ${user.name}`;
 
-            // טעינת תפקידים
-            const rolesSnap = await getDocs(collection(db, "roles"));
-            rolesSnap.forEach(d => { allRoles[d.id] = d.data(); });
-
-            // טעינת עובדים (רק עובדים רגילים, לא מנהלים)
-            await loadEmployeesLists();
+            await loadWorkersList();
         }
 
-        async function loadEmployeesLists() {
-            allUsers = [];
-            const usersSnap = await getDocs(collection(db, "users"));
+        async function loadWorkersList() {
+            allWorkers = [];
+            // שליפת העובדים מקולקציית workers החדשה
+            const workersSnap = await getDocs(collection(db, "workers"));
             
             // איפוס סלקטים
             const shiftSelect = document.getElementById('shiftEmpSelect');
@@ -316,24 +308,21 @@
             shiftSelect.innerHTML = '<option value="">-- בחר עובד --</option>';
             calFilter.innerHTML = '<option value="all">הצג את כולם</option>';
 
-            usersSnap.forEach(d => {
-                const u = d.data();
-                // סינון: לא מציגים Super או Manager ברשימות העבודה
-                if (u.role !== 'super' && u.role !== 'manager') {
-                    allUsers.push(u);
-                    
-                    // הוספה ל-Shift Select
-                    const opt1 = document.createElement('option');
-                    opt1.value = u.username;
-                    opt1.innerText = `${u.name} (ת"ז: ${u.idNum})`; // הצגת ת"ז במקום תפקיד
-                    shiftSelect.appendChild(opt1);
+            workersSnap.forEach(d => {
+                const w = { id: d.id, ...d.data() };
+                allWorkers.push(w);
+                
+                // הוספה ל-Shift Select (מזהה עובד לפי ה-ID של המסמך בדאטה בייס)
+                const opt1 = document.createElement('option');
+                opt1.value = w.id; 
+                opt1.innerText = `${w.name} (ת"ז: ${w.idNum})`;
+                shiftSelect.appendChild(opt1);
 
-                    // הוספה ל-Calendar Filter
-                    const opt2 = document.createElement('option');
-                    opt2.value = u.username;
-                    opt2.innerText = u.name;
-                    calFilter.appendChild(opt2);
-                }
+                // הוספה ל-Calendar Filter
+                const opt2 = document.createElement('option');
+                opt2.value = w.id;
+                opt2.innerText = w.name;
+                calFilter.appendChild(opt2);
             });
         }
 
@@ -349,46 +338,35 @@
             document.getElementById('menuGrid').classList.remove('hidden'); 
         };
 
-        // === 3. הוספת עובד חדש ===
+        // === 3. הוספת עובד חדש (לקולקציית workers) ===
         window.createNewEmployee = async () => {
             const name = document.getElementById('neName').value;
             const idNum = document.getElementById('neId').value;
-            const username = document.getElementById('neUser').value;
-            const pass = document.getElementById('nePass').value;
             const wage = document.getElementById('neWage').value;
 
-            if(!name || !idNum || !username || !pass || !wage) return alert("חובה למלא את כל השדות");
+            if(!name || !idNum || !wage) return alert("חובה למלא את כל השדות");
 
             try {
-                // בדיקה אם משתמש קיים
-                const q = query(collection(db, "users"), where("username", "==", username));
-                const snap = await getDocs(q);
-                if(!snap.empty) return alert("שם משתמש זה כבר תפוס!");
-
-                // יצירת העובד
-                await addDoc(collection(db, "users"), {
+                // יצירת העובד בקולקציית workers
+                await addDoc(collection(db, "workers"), {
                     name: name,
                     idNum: idNum,
-                    username: username,
-                    password: pass,
-                    role: "waiter", // ברירת מחדל: עובד טיפים
-                    specificWage: Number(wage), // שכר אישי
-                    jobType: "waiter"
+                    hourlyWage: Number(wage),
+                    createdAt: new Date()
                 });
 
-                alert("עובד נוצר בהצלחה!");
+                alert("עובד נוסף למאגר בהצלחה!");
                 closeSections();
-                await loadEmployeesLists(); // רענון רשימות
+                await loadWorkersList(); // רענון רשימות
                 
                 // ניקוי טופס
                 document.getElementById('neName').value = '';
                 document.getElementById('neId').value = '';
-                document.getElementById('neUser').value = '';
                 document.getElementById('neWage').value = '';
 
             } catch(e) {
                 console.error(e);
-                alert("שגיאה ביצירה");
+                alert("שגיאה ביצירת עובד");
             }
         };
 
@@ -401,11 +379,10 @@
             document.getElementById('shiftTips').value = '0';
             document.getElementById('specialWageInput').value = '';
             document.getElementById('specialWageContainer').classList.add('hidden');
-            document.getElementById('includeTips').checked = true; // ברירת מחדל כן
+            document.getElementById('includeTips').checked = true; 
         };
 
         window.checkTipEligibility = () => {
-            // תמיד ברירת מחדל כן, אלא אם המשתמש משנה
             document.getElementById('includeTips').checked = true;
         }
 
@@ -414,7 +391,7 @@
         }
 
         window.saveShift = async () => {
-            const username = document.getElementById('shiftEmpSelect').value;
+            const workerDocId = document.getElementById('shiftEmpSelect').value;
             const dateStr = document.getElementById('shiftDate').value;
             const timeStart = document.getElementById('shiftTimeStart').value;
             const timeEnd = document.getElementById('shiftTimeEnd').value;
@@ -422,37 +399,34 @@
             const includeTips = document.getElementById('includeTips').checked;
             const specialWageVal = document.getElementById('specialWageInput').value;
 
-            if(!username || !dateStr || !timeStart || !timeEnd) return alert("נא למלא את כל שדות החובה");
+            if(!workerDocId || !dateStr || !timeStart || !timeEnd) return alert("נא למלא את כל שדות החובה");
 
-            const user = allUsers.find(u => u.username === username);
-            // אם אין הגדרת שכר ב-DB, ניקח 0 כברירת מחדל
-            const roleConfig = allRoles[user.role] || { baseWage: 0, minTipWage: 0 }; 
-
+            const worker = allWorkers.find(w => w.id === workerDocId);
+            
             let startDateTime = new Date(`${dateStr}T${timeStart}`);
             let endDateTime = new Date(`${dateStr}T${timeEnd}`);
 
+            // לוגיקת לילה (אם סיום קטן מהתחלה)
             if (endDateTime <= startDateTime) endDateTime.setDate(endDateTime.getDate() + 1);
 
             const diffMs = endDateTime - startDateTime;
             const totalHours = diffMs / (1000 * 60 * 60);
 
-            // קביעת שכר: אם יש שכר אישי ביוזר > שכר תפקיד
-            let hourlyWage = user.specificWage ? user.specificWage : roleConfig.baseWage;
-            
-            // שכר מיוחד למשמרת דורס הכל
+            // קביעת שכר: שכר שהוגדר לעובד, או שכר מיוחד אם הוזן
+            let hourlyWage = worker.hourlyWage;
             if (specialWageVal && Number(specialWageVal) > 0) {
                 hourlyWage = Number(specialWageVal);
             }
 
             let finalPay = 0;
             let supplement = 0;
+            const MIN_TIP_WAGE = 45; // קבוע בקוד כרגע, אפשר להעביר ל-Config במידת הצורך
 
             if (includeTips) {
                 const tipsPerHour = tips / totalHours;
-                const minWage = roleConfig.minTipWage; // מגיע מהגדרת התפקיד (waiter)
                 
-                if (tipsPerHour < minWage) {
-                    supplement = (minWage - tipsPerHour) * totalHours;
+                if (tipsPerHour < MIN_TIP_WAGE) {
+                    supplement = (MIN_TIP_WAGE - tipsPerHour) * totalHours;
                     finalPay = tips + supplement;
                 } else {
                     finalPay = tips;
@@ -463,10 +437,9 @@
 
             try {
                 await addDoc(collection(db, "shifts"), {
-                    employeeName: user.name,
-                    idNum: user.idNum, // שמירת ת"ז
-                    username: user.username,
-                    roleTitle: roleConfig.title || "עובד",
+                    workerId: worker.id, // קישור לעובד
+                    employeeName: worker.name,
+                    idNum: worker.idNum,
                     start: startDateTime.toISOString(),
                     end: endDateTime.toISOString(),
                     totalHours: totalHours.toFixed(2),
@@ -494,7 +467,7 @@
             return shifts.sort((a,b) => new Date(b.start) - new Date(a.start));
         }
 
-        // פונקציית עזר לפורמט שעה 24
+        // פונקציה לכפיית פורמט 24 שעות בתצוגה
         function formatTime24(dateObj) {
             return dateObj.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
         }
@@ -536,12 +509,12 @@
 
         window.loadCalendar = async () => {
             const allShifts = await fetchShifts();
-            const filterUser = document.getElementById('calFilterUser').value;
+            const filterUserId = document.getElementById('calFilterUser').value;
             
             // סינון לפי משתמש אם נבחר
-            const shifts = (filterUser === 'all') 
+            const shifts = (filterUserId === 'all') 
                 ? allShifts 
-                : allShifts.filter(s => s.username === filterUser);
+                : allShifts.filter(s => s.workerId === filterUserId);
 
             const container = document.getElementById('calendarGrid');
             const headers = container.querySelectorAll('.cal-day-header');
@@ -572,12 +545,14 @@
                 cell.innerHTML = `<span style="font-weight:bold; font-size:0.8em;">${day}</span>`;
 
                 const shiftDateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                // סינון משמרות ליום זה
                 const dailyShifts = shifts.filter(s => s.start.startsWith(shiftDateStr));
                 
                 if (dailyShifts.length > 0) {
                     dailyShifts.forEach(s => {
                         const tStart = formatTime24(new Date(s.start));
                         const tEnd = formatTime24(new Date(s.end));
+                        // שם + שעות
                         cell.innerHTML += `<span class="shift-marker" title="${s.employeeName}">
                             ${s.employeeName.split(' ')[0]} ${tStart}-${tEnd}
                         </span>`;
